@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "938553919921",
+    "project_id": "cta-project-7b0f6",
+    "storage_bucket": "cta-project-7b0f6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:938553919921:android:23eb63f060152e06fd9590",
+        "android_client_info": {
+          "package_name": "com.example.child_tracker_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "938553919921-i67ntj45hu2m3tnk4pvh3fosonucg59k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBkIcEshED6ryGs_tKgRO0M4bI8FVEMscQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "938553919921-i67ntj45hu2m3tnk4pvh3fosonucg59k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
