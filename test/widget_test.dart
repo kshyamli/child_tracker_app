@@ -4,7 +4,7 @@ import 'package:child_tracker_app/login_screen.dart'; // Ensure this exists
 
 void main() {
   testWidgets('App load test', (WidgetTester tester) async {
-    await tester.pumpWidget(const ChildTrackerApp());
+    await tester.pumpWidget(const MyApp());
     expect(find.byType(LoginPage), findsOneWidget);
   });
 }

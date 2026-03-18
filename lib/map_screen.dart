@@ -1,53 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart'; // FIXED IMPORT
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final String childUID;
+  const MapScreen({super.key, required this.childUID});
+
   @override
   State<MapScreen> createState() => _MapScreenState();
 }
 
 class _MapScreenState extends State<MapScreen> {
-  GoogleMapController? _mapController;
-  LatLng _currentPos = const LatLng(20.9374, 77.7796);
-
-  @override
-  void initState() {
-    super.initState();
-    _startTracking();
-  }
-
-  void _startTracking() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    
-    // Modern stream setting to avoid 'undefined parameter' errors
-    Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10)
-    ).listen((Position position) {
-      if (mounted) {
-        setState(() {
-          _currentPos = LatLng(position.latitude, position.longitude);
-        });
-        _mapController?.animateCamera(CameraUpdate.newLatLng(_currentPos));
-      }
-    });
-  }
+  GoogleMapController? _controller;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Real-time Tracking")),
-      body: GoogleMap(
-        initialCameraPosition: CameraPosition(target: _currentPos, zoom: 15),
-        onMapCreated: (controller) => _mapController = controller,
-        myLocationEnabled: true,
-        markers: {
-          Marker(markerId: const MarkerId("current"), position: _currentPos),
+      appBar: AppBar(title: const Text("Live Tracking")),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('users').doc(widget.childUID).snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          
+          var data = snapshot.data!.data() as Map<String, dynamic>;
+          double lat = data['last_lat'] ?? 20.5937;
+          double lng = data['last_lng'] ?? 78.9629;
+          LatLng position = LatLng(lat, lng); // THIS NOW WORKS
+
+          return GoogleMap(
+            initialCameraPosition: CameraPosition(target: position, zoom: 15),
+            onMapCreated: (controller) => _controller = controller,
+            markers: {
+              Marker(markerId: const MarkerId("child"), position: position),
+            },
+          );
         },
       ),
     );

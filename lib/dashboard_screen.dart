@@ -1,105 +1,78 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart'; // <--- THIS WAS MISSING
+import 'package:firebase_auth/firebase_auth.dart';
 import 'map_screen.dart';
+import 'history_screen.dart';
 import 'login_screen.dart';
 
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
-  @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
-}
-
-class _DashboardScreenState extends State<DashboardScreen> {
-  String userName = "Parent";
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUserData();
-  }
-
-  void _fetchUserData() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        DocumentSnapshot userData = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        if (mounted) {
-          setState(() {
-            userName = userData.exists ? (userData['firstName'] ?? "Parent") : "Parent";
-            isLoading = false;
-          });
-        }
-      } catch (e) {
-        if (mounted) setState(() => isLoading = false);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
+    String pUid = FirebaseAuth.instance.currentUser!.uid;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Safety Dashboard"), 
-        backgroundColor: const Color(0xFF1A2B3C), 
-        foregroundColor: Colors.white
+        title: const Text("Guardian Hub"),
+        actions: [
+          IconButton(icon: const Icon(Icons.logout), onPressed: () => FirebaseAuth.instance.signOut().then((_) => Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const LoginPage()))))
+        ],
       ),
-      drawer: Drawer(
-        child: ListView(
-          children: [
-            UserAccountsDrawerHeader(
-              decoration: const BoxDecoration(color: Color(0xFF1A2B3C)),
-              accountName: Text(isLoading ? "Fetching..." : userName),
-              accountEmail: Text(FirebaseAuth.instance.currentUser?.email ?? ""),
-              currentAccountPicture: const CircleAvatar(child: Icon(Icons.person)),
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text("Logout"),
-              onTap: () async {
-                await FirebaseAuth.instance.signOut();
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
-              },
-            ),
-          ],
-        ),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('users').doc(pUid).snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          var children = snapshot.data!.get('linked_children') as List;
+
+          return ListView.builder(
+            itemCount: children.length,
+            itemBuilder: (context, index) {
+              return Card(
+                margin: const EdgeInsets.all(10),
+                child: ListTile(
+                  title: Text(children[index]['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showOptions(context, children[index]['id'], children[index]['name']),
+                ),
+              );
+            },
+          );
+        },
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Text("Welcome, $userName!", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 30),
-            _buildFeatureCard("Live Location", "Track child on Map", Icons.map, Colors.red, () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const MapScreen()));
-            }),
-            const SizedBox(height: 15),
-            _buildFeatureCard("Emergency Call", "Quick dial help", Icons.phone, Colors.blue, () async {
-              final Uri url = Uri.parse('tel:100');
-              if (await canLaunchUrl(url)) { // FIXED: Now it knows this method
-                await launchUrl(url);       // FIXED: Now it knows this method
-              }
-            }),
-          ],
-        ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _addChildDialog(context, pUid),
+        label: const Text("Link Child"),
+        icon: const Icon(Icons.link),
       ),
     );
   }
 
-  Widget _buildFeatureCard(String title, String sub, IconData icon, Color color, VoidCallback onTap) {
-    return Card(
-      elevation: 4,
-      child: ListTile(
-        leading: CircleAvatar(backgroundColor: color, child: Icon(icon, color: Colors.white)),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(sub),
-        onTap: onTap,
-      ),
-    );
+  void _showOptions(context, id, name) {
+    showModalBottomSheet(context: context, builder: (c) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(leading: const Icon(Icons.map), title: const Text("Live Map"), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => MapScreen(childUID: id)))),
+        ListTile(leading: const Icon(Icons.history), title: const Text("Activity Summary"), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => HistoryScreen(childUID: id, childName: name)))),
+      ],
+    ));
+  }
+
+  void _addChildDialog(context, pUid) {
+    final idC = TextEditingController();
+    final nameC = TextEditingController();
+    showDialog(context: context, builder: (c) => AlertDialog(
+      title: const Text("Link Child Device"),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: nameC, decoration: const InputDecoration(hintText: "Child Name")),
+        TextField(controller: idC, decoration: const InputDecoration(hintText: "Child UID")),
+      ]),
+      actions: [ElevatedButton(onPressed: () async {
+        await FirebaseFirestore.instance.collection('users').doc(pUid).update({
+          'linked_children': FieldValue.arrayUnion([{'id': idC.text, 'name': nameC.text}])
+        });
+        Navigator.pop(context);
+      }, child: const Text("Link"))],
+    ));
   }
 }
